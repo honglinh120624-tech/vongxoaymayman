@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vòng Quay May Mắn</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <style>
+        @keyframes popIn {
+            0% { opacity: 0; transform: scale(0.9); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        .animate-pop-in {
+            animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-slate-50 flex flex-col items-center py-8 px-4 font-sans relative overflow-hidden">
+
+    <!-- Header -->
+    <div class="w-full max-w-lg mb-8 text-center">
+        <h1 class="text-3xl sm:text-5xl font-extrabold text-slate-800 tracking-tight drop-shadow-sm mb-2">
+            Vòng Quay May Mắn
+        </h1>
+    </div>
+    
+    <!-- Thanh công cụ: Đếm số & Reset -->
+    <div class="mb-6 flex items-center justify-between w-full max-w-lg px-4 sm:px-8">
+        <div class="bg-white px-4 py-2 rounded-lg shadow-sm border border-slate-100 flex items-center">
+            <span class="text-sm font-medium text-slate-500 mr-2">Còn lại:</span>
+            <span id="remaining-count" class="text-xl font-bold text-blue-600">60</span>
+            <span class="text-sm font-medium text-slate-500 ml-1">số</span>
+        </div>
+        <button id="reset-btn" class="text-slate-600 hover:text-blue-600 font-medium text-sm border-2 border-slate-200 hover:border-blue-200 bg-white hover:bg-blue-50 px-4 py-2 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Làm mới
+        </button>
+    </div>
+
+    <!-- Vòng Quay -->
+    <div class="relative w-[90vw] max-w-[450px] aspect-square rounded-full shadow-2xl bg-white border-8 border-white group">
+        
+        <!-- Kim chỉ thị -->
+        <div class="absolute top-0 left-1/2 -translate-x-1/2 -mt-4 z-20 filter drop-shadow-md">
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M20 40L0 0H40L20 40Z" fill="#ef4444"/>
+            </svg>
+        </div>
+        
+        <!-- Canvas bọc trong div để xoay -->
+        <div id="wheel-container" class="w-full h-full rounded-full overflow-hidden" style="transition: transform 5000ms cubic-bezier(0.2, 0.8, 0.1, 1);">
+            <canvas id="canvas" width="800" height="800" class="w-full h-full origin-center"></canvas>
+        </div>
+        
+        <!-- Nút Spin -->
+        <button id="spin-btn" class="absolute inset-0 m-auto w-20 h-20 sm:w-24 sm:h-24 bg-white rounded-full flex items-center justify-center cursor-pointer shadow-[0_0_20px_rgba(0,0,0,0.15)] z-10 transition-transform hover:scale-105 active:scale-95 disabled:opacity-80 disabled:cursor-not-allowed border-4 border-slate-50">
+            <div class="w-14 h-14 sm:w-16 sm:h-16 bg-slate-800 rounded-full flex items-center justify-center group-hover:bg-blue-600 transition-colors">
+                <!-- Đã gỡ bỏ ml-1 tại dòng dưới -->
+                <svg class="w-10 h- text-white" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z" />
+                </svg>
+            </div>
+        </button>
+    </div>
+
+    <!-- Popup Kết Quả -->
+    <div id="popup" class="fixed inset-0 flex items-center justify-center z-50 px-4 hidden">
+        <div id="popup-overlay" class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm cursor-pointer"></div>
+        
+        <div class="bg-white rounded-[2rem] p-8 sm:p-10 shadow-2xl text-center transform scale-100 animate-pop-in max-w-sm w-full relative z-10 border border-slate-100">
+            <div class="w-20 h-20 bg-green-100 text-green-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner ring-8 ring-green-50">
+                <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+                </svg>
+            </div>
+            
+            <h2 class="text-3xl font-extrabold text-slate-800 mb-2">Chúc mừng!</h2>
+            <p class="text-lg text-slate-500 mb-4 font-medium">Con số may mắn của bạn là</p>
+            
+            <div class="bg-slate-50 rounded-2xl py-6 mb-8 border border-slate-100 shadow-inner">
+                <span id="winner-number" class="text-7xl font-black text-blue-600 tracking-tighter drop-shadow-sm">
+                    --
+                </span>
+            </div>
+            
+            <button id="continue-btn" class="w-full py-4 px-6 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold rounded-xl shadow-lg shadow-blue-200 transition-all text-lg flex items-center justify-center gap-2">
+                <span>Tiếp tục</span>
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+            </button>
+            <p class="text-xs text-slate-400 mt-4">Số này sẽ được loại bỏ khỏi vòng quay ở lượt tới</p>
+        </div>
+    </div>
+
+    <!-- Khung Audio chứa nhạc nền, thuộc tính loop để lặp lại nhạc -->
+    <audio id="bg-music" loop>
+        <source src="https://docs.google.com/uc?export=download&id=1cDRaBGA2WTI9xFAwiNUSpeq6f7i_rLyp" type="audio/mpeg">
+    </audio>
+
+    <script>
+        // Cấu hình ban đầu
+        const COLORS = [
+            '#fecaca', '#fde047', '#86efac', '#93c5fd', 
+            '#c4b5fd', '#fbcfe8', '#fdba74', '#67e8f9'
+        ];
+        const TOTAL_NUMBERS = 60;
+        const SPIN_DURATION = 5000;
+
+        // Trạng thái ứng dụng
+        let items = [];
+        let rotation = 0;
+        let isSpinning = false;
+        let selectedItem = null;
+
+        // DOM Elements
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const wheelContainer = document.getElementById('wheel-container');
+        const spinBtn = document.getElementById('spin-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const popup = document.getElementById('popup');
+        const popupOverlay = document.getElementById('popup-overlay');
+        const winnerNumber = document.getElementById('winner-number');
+        const continueBtn = document.getElementById('continue-btn');
+        const remainingCount = document.getElementById('remaining-count');
+        const bgMusic = document.getElementById('bg-music');
+
+        // Hàm tạo dữ liệu ban đầu
+        function initData() {
+            return Array.from({ length: TOTAL_NUMBERS }, (_, i) => ({
+                id: i + 1,
+                value: i + 1,
+                color: COLORS[i % COLORS.length]
+            }));
+        }
+
+        // Cập nhật UI (số lượng còn lại, trạng thái nút)
+        function updateUI() {
+            remainingCount.innerText = items.length;
+            spinBtn.disabled = isSpinning || items.length === 0;
+            resetBtn.disabled = isSpinning;
+        }
+
+        // Vẽ Vòng Quay lên Canvas
+        function drawWheel() {
+            const size = 800;
+            const center = size / 2;
+            const radius = size / 2;
+
+            ctx.clearRect(0, 0, size, size);
+
+            if (items.length === 0) {
+                ctx.beginPath();
+                ctx.arc(center, center, radius, 0, 2 * Math.PI);
+                ctx.fillStyle = '#f1f5f9';
+                ctx.fill();
+                ctx.fillStyle = '#94a3b8';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.font = 'bold 40px system-ui, sans-serif';
+                ctx.fillText('Đã quay hết số', center, center);
+                return;
+            }
+
+            const sliceAngle = (2 * Math.PI) / items.length;
+
+            items.forEach((item, i) => {
+                // Vẽ mảng
+                ctx.beginPath();
+                ctx.moveTo(center, center);
+                ctx.arc(center, center, radius, i * sliceAngle, (i + 1) * sliceAngle);
+                ctx.fillStyle = item.color;
+                ctx.fill();
+                
+                // Vẽ viền
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#ffffff';
+                ctx.stroke();
+
+                // Vẽ text
+                ctx.save();
+                ctx.translate(center, center);
+                ctx.rotate((i + 0.5) * sliceAngle);
+                ctx.textAlign = 'right';
+                ctx.textBaseline = 'middle';
+                ctx.fillStyle = '#1e293b'; 
+                
+                let fontSize = items.length > 40 ? 16 : items.length > 20 ? 24 : 36;
+                ctx.font = `bold ${fontSize}px system-ui, sans-serif`;
+                
+                ctx.fillText(item.value.toString(), radius - (items.length > 40 ? 20 : 30), 0);
+                ctx.restore();
+            });
+        }
+
+        // Xử lý Quay
+        function spin() {
+            if (isSpinning || items.length === 0) return;
+            isSpinning = true;
+            updateUI();
+
+            const N = items.length;
+            const sliceAngle = 360 / N;
+            const winnerIdx = Math.floor(Math.random() * N);
+
+            const offset = (Math.random() * 0.6 - 0.3) * sliceAngle; 
+            const baseRotation = 270 - (winnerIdx * sliceAngle + sliceAngle / 2 + offset);
+
+            const remainder = rotation % 360;
+            let angleNeeded = baseRotation - remainder;
+            if (angleNeeded < 0) angleNeeded += 360;
+
+            const spins = 5; 
+            const targetRotation = rotation + (360 * spins) + angleNeeded;
+
+            rotation = targetRotation;
+            wheelContainer.style.transform = `rotate(${rotation}deg)`;
+
+            setTimeout(() => {
+                isSpinning = false;
+                selectedItem = items[winnerIdx];
+                showPopupResult();
+                triggerConfetti();
+                updateUI();
+            }, SPIN_DURATION); 
+        }
+
+        // Hiển thị Popup
+        function showPopupResult() {
+            bgMusic.pause(); // -> Ngưng tiếng khi nhảy bảng popup trúng thưởng
+            winnerNumber.innerText = selectedItem.value;
+            popup.classList.remove('hidden');
+        }
+
+        // Ẩn Popup & Xóa số
+        function handleContinue() {
+            popup.classList.add('hidden');
+            bgMusic.play(); // -> Mở lại tiếng sau khi tắt popup 
+
+            if (selectedItem) {
+                items = items.filter(item => item.id !== selectedItem.id);
+                selectedItem = null;
+                drawWheel();
+                updateUI();
+            }
+        }
+
+        // Xử lý Reset
+        function resetWheel() {
+            if (isSpinning) return;
+            
+            // Xóa transition tạm thời để xoay về 0 không bị giật lùi
+            wheelContainer.style.transition = 'none';
+            rotation = 0;
+            wheelContainer.style.transform = `rotate(0deg)`;
+            
+            // Ép trình duyệt tính toán lại layout (reflow) để ăn CSS mới
+            void wheelContainer.offsetWidth;
+            
+            // Trả lại transition
+            wheelContainer.style.transition = `transform ${SPIN_DURATION}ms cubic-bezier(0.2, 0.8, 0.1, 1)`;
+            
+            items = initData();
+            drawWheel();
+            updateUI();
+        }
+
+        // Kích hoạt pháo bông
+        function triggerConfetti() {
+            if (window.confetti) {
+                const count = 200;
+                const defaults = { origin: { y: 0.6 }, zIndex: 9999 };
+
+                function fire(particleRatio, opts) {
+                    window.confetti(Object.assign({}, defaults, opts, {
+                        particleCount: Math.floor(count * particleRatio)
+                    }));
+                }
+
+                fire(0.25, { spread: 26, startVelocity: 55 });
+                fire(0.2, { spread: 60 });
+                fire(0.35, { spread: 100, decay: 0.91, scalar: 0.8 });
+                fire(0.1, { spread: 120, startVelocity: 25, decay: 0.92, scalar: 1.2 });
+                fire(0.1, { spread: 120, startVelocity: 45 });
+            }
+        }
+
+        // Gắn sự kiện (Event Listeners)
+        spinBtn.addEventListener('click', spin);
+        resetBtn.addEventListener('click', resetWheel);
+        continueBtn.addEventListener('click', handleContinue);
+        popupOverlay.addEventListener('click', handleContinue);
+
+        // --- Code THÊM VÀO để mẹo qua mặt trình duyệt, kích hoạt nhạc sớm nhất có thể:
+        document.body.addEventListener('click', function firstInteraction() {
+            if(popup.classList.contains('hidden')){ 
+                bgMusic.play().catch(e => console.log("Lỗi do Chrome block auto", e));
+            }
+        }, { once: true });
+
+        // Khởi tạo lần đầu
+        items = initData();
+        drawWheel();
+        updateUI();
+
+        
+    </script>
+</body>
+</html>
